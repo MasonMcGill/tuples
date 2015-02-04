@@ -2,7 +2,7 @@
 # MIT License - See "license.txt" for details.
 
 ## The ``tuples`` module defines generic operations for working with tuples. The
-## routines defined in this module allow heterogenous records to be manipulated
+## routines defined in this module allow heterogeneous records to be manipulated
 ## as if they were homogeneous collections, while maintaining type safety. View
 ## the source `here <https://github.com/MasonMcGill/tuples>`_.
 
