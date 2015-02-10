@@ -119,15 +119,15 @@ template len*(tup: tuple): int =
   getLen 0
 
 proc getProc(tup: tuple, a, b: static[int]): tuple =
-  macro buildResult(tExpr: expr): expr =
+  macro buildResult: expr =
     const names = fieldNames[type(tup)]()
     result = newPar()
     for i in 0 .. <names.len:
       if i >= a and i <= b:
         result.add(newColonExpr(
           ident(names[i]),
-          newNimNode(nnkBracketExpr).add(tExpr, newLit(i))))
-  buildResult tup
+          newNimNode(nnkBracketExpr).add(ident"tup", newLit(i))))
+  buildResult()
 
 macro get*(tup: tuple, slice: Slice[int]): expr =
   ## Access a slice of a tuple, preserving field names.
@@ -148,14 +148,14 @@ macro get*(tup: tuple, slice: Slice[int]): expr =
           newDotExpr(slice, ident"a"),
           newDotExpr(slice, ident"b"))
 
-proc putProc(t: var tuple, a, b: static[int], v: any) =
-  macro buildAction(tExpr, vExpr: expr): stmt {.gensym.} =
+proc putProc(tup: var tuple, a, b: static[int], value: any) =
+  macro buildAction: stmt {.genSym.} =
     result = newStmtList()
     for i in a .. b:
       result.add(newAssignment(
-        newNimNode(nnkBracketExpr).add(tExpr, newLit(i)),
-        newNimNode(nnkBracketExpr).add(vExpr, newLit(i - a))))
-  buildAction t, v
+        newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)),
+        newNimNode(nnkBracketExpr).add(ident"value", newLit(i - a))))
+  buildAction()
 
 macro put*(tup: var tuple, slice: Slice[int], value: tuple): stmt =
   ## Assign to a slice of a tuple, preserving field names.
@@ -178,15 +178,17 @@ macro put*(tup: var tuple, slice: Slice[int], value: tuple): stmt =
           newDotExpr(slice, ident"b"),
           value)
 
+proc mapExpr(names: seq[string], op: int): PNimrodNode {.compileTime.} =
+  result = newPar()
+  for i in 0 .. <names.len:
+    result.add(newColonExpr(
+      ident(names[i]),
+      newCall(derefExpr(op), newNimNode(nnkBracketExpr).add(
+        ident"tup", newLit(i)))))
+
 proc mapProc(tup: tuple, op: static[int]): auto =
   macro buildResult: expr =
-    const names = fieldNames[type(tup)]()
-    result = newPar()
-    for i in 0 .. <names.len:
-      result.add(newColonExpr(
-        ident(names[i]),
-        newCall(derefExpr(op), newNimNode(nnkBracketExpr).add(
-          ident"tup", newLit(i)))))
+    mapExpr fieldNames[type(tup)](), op
   buildResult()
 
 macro map*(tup: tuple, op: expr): expr =
@@ -202,18 +204,21 @@ macro map*(tup: tuple, op: expr): expr =
   ##
   newCall(bindSym"mapProc", tup, newLit(refExpr(op)))
 
-proc foldProc(tup: tuple, op: static[int]): auto =
-  static: assert tup.len >= 2
-  macro buildResult: expr =
+proc binaryFoldExpr(tupLen, op: int): PNimrodNode {.compileTime.} =
     result = newCall(
       derefExpr(op),
       newNimNode(nnkBracketExpr).add(ident"tup", newLit(0)),
       newNimNode(nnkBracketExpr).add(ident"tup", newLit(1)))
-    for i in 2 .. <tup.len:
+    for i in 2 .. <tupLen:
       result = newCall(
         derefExpr(op),
         result,
         newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)))
+
+proc foldProc(tup: tuple, op: static[int]): auto =
+  static: assert tup.len >= 2
+  macro buildResult: expr =
+    binaryFoldExpr tup.len, op
   buildResult()
 
 macro fold*(tup: tuple, op: expr): expr =
@@ -234,14 +239,17 @@ macro fold*(tup: tuple, op: expr): expr =
   ##
   newCall(bindSym"foldProc", tup, newLit(refExpr(op)))
 
+proc ternaryFoldExpr(tupLen, op: int): PNimrodNode {.compileTime.} =
+  result = ident"init"
+  for i in 0 .. <tupLen:
+    result = newCall(
+      derefExpr(op),
+      result,
+      newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)))
+
 proc foldProc(tup: tuple, op: static[int], init: any): auto =
   macro buildResult: expr =
-    result = ident"init"
-    for i in 0 .. <tup.len:
-      result = newCall(
-        derefExpr(op),
-        result,
-        newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)))
+    ternaryFoldExpr tup.len, op
   buildResult()
 
 macro fold*(tup: tuple, op, init: expr): expr =
@@ -262,6 +270,17 @@ macro fold*(tup: tuple, op, init: expr): expr =
   ##
   newCall(bindSym"foldProc", tup, newLit(refExpr(op)), init)
 
+proc joinExpr(tupLens: seq[int]): PNimrodNode {.compileTime.} =
+    result = newPar()
+    for i in 0 .. <tupLens.len:
+      for j in 0 .. <tupLens[i]:
+        result.add(newColonExpr(
+          ident("field" & $(result.len)),
+          newNimNode(nnkBracketExpr).add(
+            newNimNode(nnkBracketExpr).add(
+              ident"tup", newLit(i)),
+            newLit(j))))
+
 proc join*(tup: tuple): auto =
   ## Concatenate the elements of a tuple of tuples.
   ##
@@ -274,15 +293,10 @@ proc join*(tup: tuple): auto =
   ##   assert join((tup0, tup1)) == (0, 1.0, '2', "three")
   ##
   macro buildResult: expr =
-    result = newPar()
+    var tupLens = newSeq[int]()
     forStatic i, 0 .. <tup.len:
-      for j in 0 .. <tup[i].len:
-        result.add(newColonExpr(
-          ident("field" & $(result.len)),
-          newNimNode(nnkBracketExpr).add(
-            newNimNode(nnkBracketExpr).add(
-              ident"tup", newLit(i)),
-            newLit(j))))
+      tupLens.add tup[i].len
+    joinExpr tupLens
   buildResult()
 
 proc `&`*(tup0: tuple, tup1: tuple): auto =
@@ -290,22 +304,25 @@ proc `&`*(tup0: tuple, tup1: tuple): auto =
   ## ``join((tup0, tup1))``.
   join((tup0, tup1))
 
+proc zipExpr(outerLen, innerLen: int): PNimrodNode {.compileTime.} =
+  result = newPar()
+  for i in 0 .. <innerLen:
+    let entry = newPar()
+    for j in 0 .. <outerLen:
+      entry.add(newColonExpr(
+        ident("field" & $j),
+        newNimNode(nnkBracketExpr).add(
+          newNimNode(nnkBracketExpr).add(
+            ident"tup", newLit(j)),
+          newLit(i))))
+    result.add(newColonExpr(
+      ident("field" & $i), entry))
+
 proc zipImpl(tup: tuple): auto =
   forStatic i, 0 .. <tup.len:
     static: assert tup[i].len == tup[0].len
   macro buildResult: expr =
-    result = newPar()
-    for i in 0 .. <tup[0].len:
-      let entry = newPar()
-      for j in 0 .. <tup.len:
-        entry.add(newColonExpr(
-          ident("field" & $j),
-          newNimNode(nnkBracketExpr).add(
-            newNimNode(nnkBracketExpr).add(
-              ident"tup", newLit(j)),
-            newLit(i))))
-      result.add(newColonExpr(
-        ident("field" & $i), entry))
+    zipExpr tup.len, tup[0].len
   buildResult()
 
 proc zip*(tup0: tuple): auto =
