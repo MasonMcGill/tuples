@@ -5,6 +5,24 @@
 ## routines defined in this module allow heterogeneous records to be manipulated
 ## as if they were homogeneous collections, while maintaining type safety. View
 ## the source `here <https://github.com/MasonMcGill/tuples>`_.
+##
+## **Example:**
+##
+## .. code:: nim
+##
+##   # Construct a tuple:
+##   let tup0 = join(((0, 1.0), ('2', "three")))
+##
+##   # Convert its fields to strings (method 1):
+##   var tup1 = ("", "", "", "")
+##   forStatic i, 0 .. <tup0.len:
+##     tup1[i] = $tup0[i]
+##   assert tup1 == ("0", "1.0", "2", "three")
+##
+##   # Convert its fields to strings (method 2):
+##   let tup2 = tup0.map(`$`)
+##   assert tup2 == ("0", "1.0", "2", "three")
+##
 
 import macros
 

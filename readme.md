@@ -12,4 +12,4 @@ nimble install tuples
 
 Usage
 -----
-Please refer to the documentation [here](http://www.vision.caltech.edu/~mmcgill/tuples.html).
+Please refer to the documentation [here](http://www.vision.caltech.edu/~mmcgill/tuples/index.html).

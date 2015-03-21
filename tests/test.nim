@@ -217,3 +217,17 @@ test "zip":
     let tup3 = ("six", "seven")
     let composite = zip(tup0, tup1, tup2, tup3)
     assert composite == ((0, 2.0, '4', "six"), (1, 3.0, '5', "seven"))
+
+test "example":
+  # Construct a tuple:
+  let tup0 = join(((0, 1.0), ('2', "three")))
+
+  # Convert its fields to strings (method 1):
+  var tup1 = ("", "", "", "")
+  forStatic i, 0 .. <tup0.len:
+    tup1[i] = $tup0[i]
+  assert tup1 == ("0", "1.0", "2", "three")
+
+  # Convert its fields to strings (method 2):
+  let tup2 = tup0.map(`$`)
+  assert tup2 == ("0", "1.0", "2", "three")
