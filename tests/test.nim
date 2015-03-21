@@ -124,9 +124,9 @@ test "ternary fold":
     assert((y: "1").fold(`&`, '0') == "01")
     assert((y: "1", z: '2').fold(`&`, '0') == "012")
   block:
-    let tup0 = (0, 1.0)
-    let tup1 = ('2', "three")
-    assert join((tup0, tup1)) == (0, 1.0, '2', "three")
+    assert((0, 1, 2).fold(`+`, 0) == 3)
+    assert((2.0, 3.0).fold(`*`, 1.0) == 6.0)
+    assert(('h', "ello world").fold(`&`, "") == "hello world")
 
 test "join":
   block:

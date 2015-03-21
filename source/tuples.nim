@@ -205,15 +205,15 @@ macro map*(tup: tuple, op: expr): expr =
   newCall(bindSym"mapProc", tup, newLit(refExpr(op)))
 
 proc binaryFoldExpr(tupLen, op: int): PNimrodNode {.compileTime.} =
+  result = newCall(
+    derefExpr(op),
+    newNimNode(nnkBracketExpr).add(ident"tup", newLit(0)),
+    newNimNode(nnkBracketExpr).add(ident"tup", newLit(1)))
+  for i in 2 .. <tupLen:
     result = newCall(
       derefExpr(op),
-      newNimNode(nnkBracketExpr).add(ident"tup", newLit(0)),
-      newNimNode(nnkBracketExpr).add(ident"tup", newLit(1)))
-    for i in 2 .. <tupLen:
-      result = newCall(
-        derefExpr(op),
-        result,
-        newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)))
+      result,
+      newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)))
 
 proc foldProc(tup: tuple, op: static[int]): auto =
   static: assert tup.len >= 2
@@ -271,15 +271,15 @@ macro fold*(tup: tuple, op, init: expr): expr =
   newCall(bindSym"foldProc", tup, newLit(refExpr(op)), init)
 
 proc joinExpr(tupLens: seq[int]): PNimrodNode {.compileTime.} =
-    result = newPar()
-    for i in 0 .. <tupLens.len:
-      for j in 0 .. <tupLens[i]:
-        result.add(newColonExpr(
-          ident("field" & $(result.len)),
+  result = newPar()
+  for i in 0 .. <tupLens.len:
+    for j in 0 .. <tupLens[i]:
+      result.add(newColonExpr(
+        ident("field" & $(result.len)),
+        newNimNode(nnkBracketExpr).add(
           newNimNode(nnkBracketExpr).add(
-            newNimNode(nnkBracketExpr).add(
-              ident"tup", newLit(i)),
-            newLit(j))))
+            ident"tup", newLit(i)),
+          newLit(j))))
 
 proc join*(tup: tuple): auto =
   ## Concatenate the elements of a tuple of tuples.
