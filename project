@@ -3,30 +3,34 @@
 Compile, test, and/or publish the Nim tuples module.
 '''
 from argparse import ArgumentParser
-from subprocess import call, Popen, PIPE
+from subprocess import Popen, PIPE
+
+DOC_SITE = 'mmcgill@vision.caltech.edu:public_html/tuples'
+NIM_FLAGS = ('--parallelBuild:1 --warning[Deprecated]:off ' +
+             '--verbosity:0 --path:source')
+
+def sh(cmd, **options):
+    return Popen(cmd, shell=True, **options)
 
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('command', help='"compile", "test", or "publish"')
 command = parser.parse_args().command
 
-nim_flags = ['--parallelBuild:1', '--warning[Deprecated]:off',
-             '--verbosity:0', '--path:source']
-
 if command == 'compile':
-    call(['nim', 'c', '-r'] + nim_flags + ['source/tuples.nim'])
+    sh('nim c -r ' + NIM_FLAGS + ' source/*.nim')
 elif command == 'test':
-    call(['nim', 'c', '-r'] + nim_flags + ['tests/test.nim'])
+    sh('nim c -r ' + NIM_FLAGS + ' tests/*.nim')
 elif command == 'doc':
-    call(['nim', 'doc', '-o:index.html'] + nim_flags + ['source/tuples.nim'])
+    sh('nim doc -o:index.html ' + NIM_FLAGS + ' source/*.nim')
 elif command == 'publish':
-    git_status = Popen(['git', 'status', '--porcelain'], stdout=PIPE)
+    git_status = sh('git status --porcelain', stdout=PIPE)
     if len(git_status.stdout.read()) > 0:
-        print("Publishing did not succeed:")
-        call(['git', 'status'])
+        print('Publishing did not succeed:')
+        sh('git status')
         exit()
-    call(['nim', 'doc', '-o:index.html'] + nim_flags + ['source/tuples.nim'])
-    call(['git', 'push'])
-    call(['scp', 'index.html', 'mmcgill@vision.caltech.edu:public_html/tuples'])
-    print("Publishing succeeded.")
+    sh('nim', 'doc', '-o:index.html ' + NIM_FLAGS + ' source/*.nim')
+    sh('git push')
+    sh('scp index.html ' + DOC_SITE)
+    print('Publishing succeeded.')
 else:
     parser.print_help()
