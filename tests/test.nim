@@ -221,6 +221,7 @@ test "zip":
 test "example":
   # Construct a tuple:
   let tup0 = join(((0, 1.0), ('2', "three")))
+  assert tup0 == (0, 1.0, '2', "three")
 
   # Convert its fields to strings (method 1):
   var tup1 = ("", "", "", "")
