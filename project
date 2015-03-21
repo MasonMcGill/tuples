@@ -29,8 +29,8 @@ elif command == 'publish':
         sh('git status')
         exit()
     sh('nim doc -o:index.html ' + NIM_FLAGS + ' source/*.nim')
-    call('git push')
-    call('scp index.html ' + DOC_SITE)
+    Popen('git push')
+    Popen('scp index.html ' + DOC_SITE)
     print('Publishing succeeded.')
 else:
     parser.print_help()
