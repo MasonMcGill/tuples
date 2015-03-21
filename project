@@ -28,7 +28,7 @@ elif command == 'publish':
         print('Publishing did not succeed:')
         sh('git status')
         exit()
-    sh('nim', 'doc', '-o:index.html ' + NIM_FLAGS + ' source/*.nim')
+    sh('nim doc -o:index.html ' + NIM_FLAGS + ' source/*.nim')
     sh('git push')
     sh('scp index.html ' + DOC_SITE)
     print('Publishing succeeded.')
