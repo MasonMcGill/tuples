@@ -3,7 +3,7 @@
 Compile, test, and/or publish the Nim tuples module.
 '''
 from argparse import ArgumentParser
-from subprocess import call, PIPE, Popen
+from subprocess import call, Popen, PIPE
 
 parser = ArgumentParser(description=__doc__)
 parser.add_argument('command', help='"compile", "test", or "publish"')
@@ -19,10 +19,14 @@ elif command == 'test':
 elif command == 'doc':
     call(['nim', 'doc', '-o:index.html'] + nim_flags + ['source/tuples.nim'])
 elif command == 'publish':
+    git_status = Popen(['git', 'status', '--porcelain'], stdout=PIPE)
+    if len(git_status.stdout.read()) > 0:
+        print("Publishing did not succeed:")
+        call(['git', 'status'])
+        exit()
     call(['nim', 'doc', '-o:index.html'] + nim_flags + ['source/tuples.nim'])
-    p = Popen(['git', 'status', '--porcelain'], stdout=PIPE)
-    print len(p.stdout.read())
-    # call(['git', 'push'])
-    # call(['scp', 'index.html', 'mmcgill@vision.caltech.edu:public_html/tuples'])
+    call(['git', 'push'])
+    call(['scp', 'index.html', 'mmcgill@vision.caltech.edu:public_html/tuples'])
+    print("Publishing succeeded.")
 else:
     parser.print_help()
