@@ -12,15 +12,17 @@ command = parser.parse_args().command
 
 here = dirname(abspath(__file__))
 nim_flags = ['--parallelBuild:1', '--warning[Deprecated]:off',
-             '--verbosity:0', '--path:' + join(here, 'source')]
+             '--verbosity:0', '--path:source']
 
 if command == 'compile':
-    call(['nim', 'c', '-r'] + nim_flags + [join(here, 'source/tuples.nim')])
+    call(['nim', 'c', '-r'] + nim_flags + ['source/tuples.nim'])
 elif command == 'test':
-    call(['nim', 'c', '-r'] + nim_flags + [join(here, 'tests/test.nim')])
+    call(['nim', 'c', '-r'] + nim_flags + ['tests/test.nim'])
+elif command == 'doc':
+    call(['nim', 'doc', '-o:index.html'] + nim_flags + ['source/tuples.nim'])
 elif command == 'publish':
-    call(['nim', 'doc'] + nim_flags + [join(here, 'source/tuples.nim')])
-    call(['scp', 'source/tuples.html', 'mmcgill@vision.caltech.edu:' +
-          'public_html/tuples/index.html'])
+    call(['nim', 'doc', '-o:index.html'] + nim_flags + ['source/tuples.nim'])
+    call(['git', 'push'])
+    call(['scp', 'index.html', 'mmcgill@vision.caltech.edu:public_html/tuples'])
 else:
     parser.print_help()
