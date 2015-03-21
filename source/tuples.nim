@@ -215,7 +215,7 @@ proc binaryFoldExpr(tupLen, op: int): PNimrodNode {.compileTime.} =
       result,
       newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)))
 
-proc foldProc(tup: tuple, op: static[int]): auto =
+proc binaryFoldProc(tup: tuple, op: static[int]): auto =
   static: assert tup.len >= 2
   macro buildResult: expr =
     binaryFoldExpr tup.len, op
@@ -237,7 +237,7 @@ macro fold*(tup: tuple, op: expr): expr =
   ##   assert((2.0, 3.0).fold(`*`) == 6.0)
   ##   assert(('h', "ello world").fold(`&`) == "hello world")
   ##
-  newCall(bindSym"foldProc", tup, newLit(refExpr(op)))
+  newCall(bindSym"binaryFoldProc", tup, newLit(refExpr(op)))
 
 proc ternaryFoldExpr(tupLen, op: int): PNimrodNode {.compileTime.} =
   result = ident"init"
@@ -247,7 +247,7 @@ proc ternaryFoldExpr(tupLen, op: int): PNimrodNode {.compileTime.} =
       result,
       newNimNode(nnkBracketExpr).add(ident"tup", newLit(i)))
 
-proc foldProc(tup: tuple, op: static[int], init: any): auto =
+proc ternaryFoldProc(tup: tuple, op: static[int], init: any): auto =
   macro buildResult: expr =
     ternaryFoldExpr tup.len, op
   buildResult()
@@ -268,7 +268,7 @@ macro fold*(tup: tuple, op, init: expr): expr =
   ##   assert((2.0, 3.0).fold(`*`, 1.0) == 6.0)
   ##   assert(('h', "ello world").fold(`&`, "") == "hello world")
   ##
-  newCall(bindSym"foldProc", tup, newLit(refExpr(op)), init)
+  newCall(bindSym"ternaryFoldProc", tup, newLit(refExpr(op)), init)
 
 proc joinExpr(tupLens: seq[int]): PNimrodNode {.compileTime.} =
   result = newPar()
