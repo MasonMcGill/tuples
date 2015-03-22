@@ -1,13 +1,27 @@
 #!/usr/bin/env python
 '''
-Compile, test, and/or publish the Nim tuples module.
+Interact with or edit the Nim tuples library.
 '''
 from argparse import ArgumentParser
+from glob import glob
+from os import makedirs
+from os.path import abspath, dirname, exists, join
 from subprocess import call, check_output
 
+################################################################################
+# Define constants.
+
 DOC_SITE = 'mmcgill@vision.caltech.edu:public_html/tuples'
-NIM_FLAGS = ('--parallelBuild:1 --warning[Deprecated]:off ' +
-             '--verbosity:0 --path:source')
+NIM_OPTIONS = '--verbosity:0 --warning[Deprecated]:off'
+
+################################################################################
+# Discover tests and benchmarks.
+
+tests = sorted(p[6:-4] for p in glob('tests/*.nim'))
+benchmarks = sorted(p[11:-4] for p in glob('benchmarks/*.nim'))
+
+################################################################################
+# Define shell interactions.
 
 def shell(cmd):
     call(cmd, shell=True)
@@ -15,25 +29,70 @@ def shell(cmd):
 def subshell(cmd):
     return check_output(cmd, shell=True)
 
-parser = ArgumentParser(description=__doc__)
-parser.add_argument('command', help='"compile", "test", or "publish"')
-command = parser.parse_args().command
+def run(target, options=''):
+    here = dirname(abspath(__file__))
+    source_path = join(here, 'source')
+    binary_path = join(here, 'binary', target)
+    target_path = join(here, target + '.nim')
+    if not exists(dirname(binary_path)):
+        makedirs(dirname(binary_path))
+    shell('nim c -r ' + NIM_OPTIONS + options +
+          ' --path:' + source_path +
+          ' --out:' + binary_path +
+          ' ' + target_path)
 
-if command == 'compile':
-    shell('nim c -r ' + NIM_FLAGS + ' source/*.nim')
-elif command == 'test':
-    shell('nim c -r ' + NIM_FLAGS + ' tests/*.nim')
-elif command == 'doc':
-    shell('nim doc -o:index.html ' + NIM_FLAGS + ' source/*.nim')
-elif command == 'publish':
-    git_status = subshell('git status --porcelain')
-    if len(git_status) > 0:
+################################################################################
+# Define commands.
+
+def test(target):
+    run('tests/' + target)
+
+def test_all():
+    list(map(test, tests))
+
+def benchmark(target):
+    run('benchmarks/' + target)
+
+def benchmark_all():
+    list(map(benchmark, benchmarks))
+
+def document():
+    shell('nim doc2 -o:index.html ' + NIM_OPTIONS + ' source/*.nim')
+
+def publish():
+    if len(subshell('git status --porcelain')) > 0:
         print('Publishing did not succeed:')
         shell('git status')
-        exit()
-    shell('nim doc -o:index.html ' + NIM_FLAGS + ' source/*.nim')
-    shell('git push')
-    shell('scp index.html ' + DOC_SITE)
-    print('Publishing succeeded.')
-else:
-    parser.print_help()
+    else:
+        document()
+        shell('git push')
+        shell('scp index.html ' + DOC_SITE)
+        print('Publishing succeeded.')
+
+################################################################################
+# Parse arguments.
+
+parser = ArgumentParser(description=__doc__)
+subparsers = parser.add_subparsers(dest='command')
+
+if len(tests) > 0:
+    (subparsers.add_parser('test', help='Run a test.')
+               .add_argument('target', choices=tests))
+    subparsers.add_parser('test-all', help='Run all tests.')
+
+if len(benchmarks) > 0:
+    (subparsers.add_parser('benchmark', help='Run a benchmark.')
+               .add_argument('target', choices=benchmarks))
+    subparsers.add_parser('benchmark-all', help='Run all benchmarks.')
+
+subparsers.add_parser('document', help='Generate HTML documentation.')
+subparsers.add_parser('publish', help='Release a new version of the library.')
+
+args = parser.parse_args()
+
+################################################################################
+# Execute a command.
+
+command = globals()[args.command.replace('-', '_')]
+command_args = {k: v for k, v in args.__dict__.items() if k != 'command'}
+command(**command_args)

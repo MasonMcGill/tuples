@@ -1,4 +1,4 @@
+binary/
 **/nimcache/
-**/test
-**/tuples
-*.html
+**/*.html
+**/.DS_Store
